@@ -26,18 +26,43 @@ def test_api_endpoint(name, method, endpoint, data=None):
         print(f"📊 状态码: {response.status_code}")
         
         if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list):
-                print(f"✅ 成功 - 返回 {len(result)} 条记录")
-                if len(result) > 0:
-                    print(f"📝 第一条记录预览: {json.dumps(result[0] if isinstance(result[0], dict) else str(result[0]), ensure_ascii=False)[:200]}...")
-            elif isinstance(result, dict):
-                if 'total' in result:
-                    print(f"✅ 成功 - 总计 {result['total']} 条记录")
+            # 检查响应的Content-Type来判断如何处理
+            content_type = response.headers.get('content-type', '').lower()
+            
+            if 'application/json' in content_type:
+                # JSON响应
+                result = response.json()
+                if isinstance(result, list):
+                    print(f"✅ 成功 - 返回 {len(result)} 条记录")
+                    if len(result) > 0:
+                        print(f"📝 第一条记录预览: {json.dumps(result[0] if isinstance(result[0], dict) else str(result[0]), ensure_ascii=False)[:200]}...")
+                elif isinstance(result, dict):
+                    if 'total' in result:
+                        print(f"✅ 成功 - 总计 {result['total']} 条记录")
+                    else:
+                        print(f"✅ 成功 - 返回数据: {json.dumps(result, ensure_ascii=False)[:200]}...")
                 else:
-                    print(f"✅ 成功 - 返回数据: {json.dumps(result, ensure_ascii=False)[:200]}...")
+                    print(f"✅ 成功 - 返回: {str(result)[:200]}...")
+            elif 'text/html' in content_type or endpoint == '/':
+                # HTML响应（如主页）
+                print(f"✅ 成功 - 返回HTML页面 (大小: {len(response.text)} 字符)")
             else:
-                print(f"✅ 成功 - 返回: {str(result)[:200]}...")
+                # 其他类型的响应
+                try:
+                    result = response.json()
+                    if isinstance(result, list):
+                        print(f"✅ 成功 - 返回 {len(result)} 条记录")
+                        if len(result) > 0:
+                            print(f"📝 第一条记录预览: {json.dumps(result[0] if isinstance(result[0], dict) else str(result[0]), ensure_ascii=False)[:200]}...")
+                    elif isinstance(result, dict):
+                        if 'total' in result:
+                            print(f"✅ 成功 - 总计 {result['total']} 条记录")
+                        else:
+                            print(f"✅ 成功 - 返回数据: {json.dumps(result, ensure_ascii=False)[:200]}...")
+                    else:
+                        print(f"✅ 成功 - 返回: {str(result)[:200]}...")
+                except json.JSONDecodeError:
+                    print(f"✅ 成功 - 返回非JSON数据 (大小: {len(response.text)} 字符)")
         else:
             print(f"❌ 失败 - {response.text}")
             
