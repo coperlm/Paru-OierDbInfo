@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIerDb 批量查询</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">OIerDb 选手获奖信息批量查询</h1>
+
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <div class="mb-6">
+                <label for="names" class="block text-sm font-medium text-gray-700 mb-2">
+                    请输入选手姓名（每行一个）：
+                </label>
+                <textarea
+                    id="names"
+                    rows="10"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="例如：&#10;张三&#10;李四&#10;王五"
+                ></textarea>
+            </div>
+
+            <div class="flex justify-center mb-6">
+                <button
+                    id="queryBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200"
+                >
+                    查询
+                </button>
+            </div>
+
+            <div id="loading" class="hidden text-center py-4">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p class="mt-2 text-gray-600">正在查询中...</p>
+            </div>
+
+            <div id="results" class="hidden">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">查询结果</h2>
+                <div id="resultsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('queryBtn').addEventListener('click', async () => {
+            const namesTextarea = document.getElementById('names');
+            const names = namesTextarea.value.trim().split('\n').filter(name => name.trim() !== '');
+
+            if (names.length === 0) {
+                alert('请输入至少一个选手姓名');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+
+            loading.classList.remove('hidden');
+            results.classList.add('hidden');
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ names }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('查询失败');
+                }
+
+                const data = await response.json();
+
+                resultsList.innerHTML = '';
+
+                data.forEach(oier => {
+                    const oierDiv = document.createElement('div');
+                    oierDiv.className = 'bg-gray-50 rounded-lg p-4 mb-4';
+
+                    let html = `
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">${oier.name}</h3>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="text-sm text-gray-600">性别: ${oier.gender || '未知'}</p>
+                                <p class="text-sm text-gray-600">入学年份: ${oier.enroll_middle || '未知'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">OIerDb评分: ${oier.oierdb_score.toFixed(2)}</p>
+                                <p class="text-sm text-gray-600">CCF评分: ${oier.ccf_score.toFixed(2)}</p>
+                                <p class="text-sm text-gray-600">CCF等级: ${oier.ccf_level}</p>
+                            </div>
+                        </div>
+                    `;
+
+                    if (oier.records.length > 0) {
+                        html += '<h4 class="font-medium text-gray-700 mb-2">获奖记录:</h4>';
+                        html += '<div class="space-y-2">';
+
+                        oier.records.forEach(record => {
+                            html += `
+                                <div class="bg-white rounded p-3 border">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-medium text-gray-800">${record.contest_name}</p>
+                                            <p class="text-sm text-gray-600">${record.contest_type} ${record.year}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm text-gray-600">排名: ${record.rank}</p>
+                                            <p class="text-sm text-gray-600">分数: ${record.score}</p>
+                                            <p class="text-sm text-gray-600">等级: ${record.level}</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 text-sm text-gray-600">
+                                        <span>省份: ${record.province}</span>
+                                        ${record.school ? `<span class="ml-4">学校: ${record.school}</span>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        html += '</div>';
+                    } else {
+                        html += '<p class="text-gray-500 italic">暂无获奖记录</p>';
+                    }
+
+                    oierDiv.innerHTML = html;
+                    resultsList.appendChild(oierDiv);
+                });
+
+                results.classList.remove('hidden');
+            } catch (error) {
+                alert('查询失败: ' + error.message);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
